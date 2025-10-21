@@ -7,6 +7,9 @@
 #include <QLineEdit>
 #include <QSettings>
 #include <QCloseEvent>
+#include "CustomGraphicsView.h"
+#include "CustomGraphicsScene.h"
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -20,9 +23,8 @@ private:
     void loadSettings(QSettings & settings);//Загружаем настройки
     void saveSettings(QSettings & settings);//Сохраняем
 
-    QGraphicsScene *m_scene;
-    QGraphicsView *m_field;
-
+    CustomGraphicsScene *m_scene = nullptr;
+    CustomGraphicsView * m_view = nullptr;
     QLineEdit *m_widthLineEdit;
     QLineEdit *m_heightLineEdit;
     QPushButton *m_generateButton;

@@ -7,18 +7,34 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
 set(SOURCES
     src/main.cpp
     src/mainwindow.cpp
+    src/CustomGraphicsScene/CustomGraphicsScene.cpp
+    src/CustomGraphicsView/CustomGraphicsView.cpp
+    src/Square/Square.cpp
 )
 
 set(HEADERS
     src/mainwindow.h
+    src/CustomGraphicsScene/CustomGraphicsScene.h
+    src/CustomGraphicsView/CustomGraphicsView.h
+    src/Square/Square.h
 )
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
+add_executable(${PROJECT_NAME}
+    ${SOURCES}
+    ${HEADERS}
+)
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+target_include_directories(${PROJECT_NAME} PRIVATE
+    src
+    src/CustomGraphicsScene
+    src/CustomGraphicsView
+    src/Square
+)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets)

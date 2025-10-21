@@ -4,6 +4,8 @@
 #include <QGuiApplication>
 #include <QRect>
 #include <QScreen>
+#include <QGraphicsRectItem>
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
@@ -35,10 +37,13 @@ void MainWindow::setupUi()
     QVBoxLayout *leftLayout = new QVBoxLayout();
 
     //Сцена и поле
-    m_scene = new QGraphicsScene(0, 0, 300, 300);
-    m_field = new QGraphicsView(m_scene);
-    m_field->setMinimumSize(500, 500);
-    m_field->setRenderHint(QPainter::Antialiasing);
+    m_scene = new CustomGraphicsScene();
+    m_view = new CustomGraphicsView(this);
+    m_view->setScene(m_scene);
+    m_scene->createGrid();
+
+    m_view->setMinimumSize(500, 500);
+    m_view->setRenderHint(QPainter::Antialiasing);
 
     QHBoxLayout *m_sizesLayout = new QHBoxLayout;
     QLabel *labelWidth = new QLabel("W");
@@ -63,7 +68,7 @@ void MainWindow::setupUi()
     m_sizesLayout->addWidget(m_heightLineEdit);
     m_sizesLayout->addStretch();
 
-    leftLayout->addWidget(m_field);
+    leftLayout->addWidget(m_view);
     leftLayout->addLayout(m_sizesLayout);
 
     //Область с кнопкой генерировать
@@ -84,7 +89,7 @@ void MainWindow::setupUi()
 
 void MainWindow::resetDefaultSettings(QSettings &settings)
 {
-    // Сбрасываем значения по умолчанию, если они не были найдены
+    //Сбрасываем значения по умолчанию, если они не были найдены
     if (!settings.contains("App/Geometry")) {
         QScreen *screen = QGuiApplication::primaryScreen();
         QRect screenGeometry = screen->availableGeometry();
@@ -123,9 +128,9 @@ void MainWindow::saveSettings(QSettings &settings)
     //Геометрия
     settings.setValue("App/Geometry", saveGeometry());
     //Длина
-    settings.setValue("UI/HeightLineEdit", m_widthLineEdit->text());
+    settings.setValue("UI/WidthLineEdit", m_widthLineEdit->text());
     //Высота
-    settings.setValue("UI/WidthLineEdit", m_heightLineEdit->text());
+    settings.setValue("UI/HeightLineEdit", m_heightLineEdit->text());
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
