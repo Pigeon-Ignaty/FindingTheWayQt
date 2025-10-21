@@ -5,7 +5,7 @@
 #include <QRect>
 #include <QScreen>
 #include <QGraphicsRectItem>
-
+#include <QIntValidator>
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
@@ -40,7 +40,6 @@ void MainWindow::setupUi()
     m_scene = new CustomGraphicsScene();
     m_view = new CustomGraphicsView(this);
     m_view->setScene(m_scene);
-    m_scene->createGrid();
 
     m_view->setMinimumSize(500, 500);
     m_view->setRenderHint(QPainter::Antialiasing);
@@ -58,6 +57,10 @@ void MainWindow::setupUi()
     m_heightLineEdit = new QLineEdit;
     m_heightLineEdit->setFixedWidth(50);
     m_heightLineEdit->setFont(font);
+    //Ограничиваем значение в qlineedit
+    QIntValidator *validator = new QIntValidator(minSizeField, maxSizeField,this);
+    m_widthLineEdit->setValidator(validator);
+    m_heightLineEdit->setValidator(validator);
 
     //Область для размеров
     m_sizesLayout->addStretch();
@@ -76,6 +79,41 @@ void MainWindow::setupUi()
     m_generateButton = new QPushButton("Генерировать");
     m_generateButton->setFixedSize(200,50);
     m_generateButton->setFont(font);
+
+    //Проверяем введённые значения в lineedit
+    auto validateValueLineEdit = [this](QLineEdit *lineEdit){
+        bool ok;
+        int value = lineEdit->text().toInt(&ok);
+        if(ok){
+            if(value < minSizeField) value = minSizeField;
+            if(value > maxSizeField) value = maxSizeField;
+            lineEdit->setText(QString::number(value));
+        }
+        if(!ok)
+            return;
+    };
+
+    //Подключения слотов на проверку значений при вводе
+    connect(m_widthLineEdit, &QLineEdit::textChanged, this, [this, validateValueLineEdit](){
+        validateValueLineEdit(m_widthLineEdit);
+    });
+    connect(m_heightLineEdit, &QLineEdit::textChanged, this, [this, validateValueLineEdit](){
+        validateValueLineEdit(m_heightLineEdit);
+    });
+    //Создаем поле после нажатия на кнопку на основе размеров
+    connect(m_generateButton, &QPushButton::clicked, this, [this](){
+        int width = m_widthLineEdit->text().toInt();
+        int height = m_heightLineEdit->text().toInt();
+
+        //Ещё одна проверка
+        if (width < minSizeField || width > maxSizeField)
+            return;
+        if (height < minSizeField || height > maxSizeField)
+            return;
+
+        m_scene->createGrid(width, height);
+    });
+
     rightLayout->addWidget(m_generateButton);
     rightLayout->addStretch();
 
@@ -89,7 +127,7 @@ void MainWindow::setupUi()
 
 void MainWindow::resetDefaultSettings(QSettings &settings)
 {
-    //Сбрасываем значения по умолчанию, если они не были найдены
+    // Сбрасываем значения по умолчанию, если они не были найдены
     if (!settings.contains("App/Geometry")) {
         QScreen *screen = QGuiApplication::primaryScreen();
         QRect screenGeometry = screen->availableGeometry();

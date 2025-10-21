@@ -18,6 +18,9 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 private:
+    static constexpr int minSizeField = 2;//Минимальный размер поля
+    static constexpr int maxSizeField = 100;//Максимальный размер
+
     void setupUi();// Собираем UI
     void resetDefaultSettings(QSettings & settings);//Сбрасываем некорректные настройки
     void loadSettings(QSettings & settings);//Загружаем настройки
