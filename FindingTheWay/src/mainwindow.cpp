@@ -1,11 +1,17 @@
 #include "mainwindow.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
-
+#include <QGuiApplication>
+#include <QRect>
+#include <QScreen>
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
     setupUi();
+    QSettings settings("config.ini", QSettings::IniFormat); //Открываем ini файл
+    resetDefaultSettings(settings);
+    loadSettings(settings);
+    saveSettings(settings);
 }
 
 MainWindow::~MainWindow()
@@ -63,7 +69,7 @@ void MainWindow::setupUi()
     //Область с кнопкой генерировать
     QVBoxLayout *rightLayout = new QVBoxLayout();
     m_generateButton = new QPushButton("Генерировать");
-    m_generateButton->setFixedSize(200,30);
+    m_generateButton->setFixedSize(200,50);
     m_generateButton->setFont(font);
     rightLayout->addWidget(m_generateButton);
     rightLayout->addStretch();
@@ -74,4 +80,57 @@ void MainWindow::setupUi()
 
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(10);
+}
+
+void MainWindow::resetDefaultSettings(QSettings &settings)
+{
+    // Сбрасываем значения по умолчанию, если они не были найдены
+    if (!settings.contains("App/Geometry")) {
+        QScreen *screen = QGuiApplication::primaryScreen();
+        QRect screenGeometry = screen->availableGeometry();
+
+        int width = static_cast<int>(screenGeometry.width() * 0.6);
+        int height = static_cast<int>(screenGeometry.height() * 0.6);
+        this->resize(width,height);
+        this->move(screenGeometry.x() + (screenGeometry.width() - width) / 2,
+                   screenGeometry.y() + (screenGeometry.height() - height) / 2);
+        settings.setValue("App/Geometry", saveGeometry());
+    }
+
+    if (!settings.contains("UI/WidthLineEdit")) {
+        settings.setValue("UI/WidthLineEdit", 10);
+    }
+    if (!settings.contains("UI/HeightLineEdit")) {
+        settings.setValue("UI/HeightLineEdit", 10);
+    }
+
+}
+
+void MainWindow::loadSettings(QSettings &settings)
+{
+    //Геометрия
+    QByteArray geometry = settings.value("App/Geometry").toByteArray();
+    if(!geometry.isEmpty())
+        restoreGeometry(geometry);
+    //Длина
+    m_widthLineEdit->setText(settings.value("UI/WidthLineEdit").toString());
+    //Высота
+    m_heightLineEdit->setText(settings.value("UI/HeightLineEdit").toString());
+}
+
+void MainWindow::saveSettings(QSettings &settings)
+{
+    //Геометрия
+    settings.setValue("App/Geometry", saveGeometry());
+    //Длина
+    settings.setValue("UI/HeightLineEdit", m_widthLineEdit->text());
+    //Высота
+    settings.setValue("UI/WidthLineEdit", m_heightLineEdit->text());
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    QSettings settings("config.ini", QSettings::IniFormat); //сохранение настроек пользователя
+    saveSettings(settings);
+    event->accept();
 }

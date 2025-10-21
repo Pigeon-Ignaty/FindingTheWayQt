@@ -7,7 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
-# Файлы проекта
 set(SOURCES
     src/main.cpp
     src/mainwindow.cpp
@@ -16,6 +15,9 @@ set(SOURCES
 set(HEADERS
     src/mainwindow.h
 )
+
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
