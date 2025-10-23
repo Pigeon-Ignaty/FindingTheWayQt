@@ -31,6 +31,7 @@ private:
     CustomGraphicsScene *m_scene = nullptr;
     CustomGraphicsView * m_view = nullptr;
     GridModel *m_model = nullptr;
+    GridItem *m_gridItem = nullptr;
     QLineEdit *m_widthLineEdit;
     QLineEdit *m_heightLineEdit;
     QPushButton *m_createFieldButton = nullptr;

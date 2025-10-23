@@ -129,6 +129,7 @@ void MainWindow::setupUi()
             m_scene->removeItem(item);
             delete item;
         }
+        m_gridItem = nullptr;
 
         //Удаляем старую модель
         if(m_model) {
@@ -138,18 +139,27 @@ void MainWindow::setupUi()
 
         //Создание новой модели
         m_model = new GridModel(width, height);
-        GridItem *gridItem = new GridItem(m_model);
+        m_gridItem = new GridItem(m_model);
 
         //Установим фокус зума в центре элемента
-        gridItem->setTransformOriginPoint(gridItem->getBoundingRect().center());
+        m_gridItem->setTransformOriginPoint(m_gridItem->getBoundingRect().center());
 
-        QRectF rect = gridItem->getBoundingRect();
-        gridItem->setPos(-rect.width() / 2, -rect.height() / 2);
+        QRectF rect = m_gridItem->getBoundingRect();
+        m_gridItem->setPos(-rect.width() / 2, -rect.height() / 2);
 
-        m_scene->addItem(gridItem);
+        m_scene->addItem(m_gridItem);
 
         m_scene->setSceneRect(m_scene->itemsBoundingRect());
-        m_view->centerOn(gridItem);
+        m_view->centerOn(m_gridItem);
+    });
+    connect(m_generateWallButton, &QPushButton::clicked, this, [this](){
+        //Если не сделан предыдущий шаг, то выходим
+        if(!m_model || m_model->getPointA() == QPoint(-1,-1) || m_model->getPointB() == QPoint(-1,-1)){
+            QMessageBox::warning(this, "Ошибка", "Не все точки установлены!");
+            return;
+        }
+        m_model->generateWalls(0.5);
+        m_gridItem->update();
     });
 }
 

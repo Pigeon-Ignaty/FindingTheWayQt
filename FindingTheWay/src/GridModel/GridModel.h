@@ -17,6 +17,8 @@ class GridModel
 
 public:
     GridModel(int width = 10, int height = 10);
+    //Генерация блуждающих стен
+    void generateWalls(double chance);
     //Получение высоты и длины
     inline int width() {return m_width; }
     inline int height() {return m_height; }
@@ -36,5 +38,6 @@ private:
     QVector <CellType> m_cells; //Все клетки в одномерно массиве
     QPoint m_pointA{-1,-1};
     QPoint m_pointB{-1,-1};
+    void randomFillWalls(double chance, int maxAttempts = 10); //Случайно заполняем стенами поле
 };
 
