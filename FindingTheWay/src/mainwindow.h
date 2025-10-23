@@ -9,6 +9,8 @@
 #include <QCloseEvent>
 #include "CustomGraphicsView.h"
 #include "CustomGraphicsScene.h"
+#include "GridModel.h"
+#include <GridItem.h>
 
 class MainWindow : public QMainWindow
 {
@@ -28,9 +30,13 @@ private:
 
     CustomGraphicsScene *m_scene = nullptr;
     CustomGraphicsView * m_view = nullptr;
+    GridModel *m_model = nullptr;
     QLineEdit *m_widthLineEdit;
     QLineEdit *m_heightLineEdit;
-    QPushButton *m_generateButton;
+    QPushButton *m_createFieldButton = nullptr;
+    QPushButton *m_generateWallButton = nullptr;
+    QPushButton *m_findTheWayButton = nullptr;
+
 protected:
     void closeEvent(QCloseEvent *event) override; //Выходим из приложения и сохраняем настройки в ini
 };

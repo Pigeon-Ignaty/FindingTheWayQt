@@ -1,0 +1,100 @@
+#include "GridItem.h"
+#include <QGraphicsSceneMouseEvent>
+#include <QPainter>
+#include <GridModel.h>
+
+GridItem::GridItem(GridModel *model) : m_model(model)
+{
+    setAcceptedMouseButtons(Qt::LeftButton);
+}
+
+void GridItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
+{
+    QPointF pos = event->pos(); //Текущая позиция
+    int x = static_cast<int>(pos.x() / 30);
+    int y = static_cast<int>(pos.y() / 30);
+
+    //Проверка, что тыкнули по сетке
+    if(x >= 0 && x < m_model->width() && y >= 0 && y < m_model->height()){
+        CellType currentCell = m_model->getCell(x,y);//Тип квадрата
+
+        if(currentCell == CellType::Input){//Если снимаем А
+            m_model->setCell(x,y,CellType::Empty);
+            m_model->setPointA(-1,-1);
+        }
+        else if(currentCell == CellType::OutPut){//Если снимаем B
+            m_model->setCell(x,y,CellType::Empty);
+            m_model->setPointB(-1,-1);
+        }
+        else if(currentCell == CellType::Empty){//Если тыкнули на пустую ячейку
+            if(m_model->getPointA() == QPoint(-1,-1)){//Если не задана A
+                m_model->setCell(x,y,CellType::Input);
+                m_model->setPointA(x,y);
+            }
+            else if(m_model->getPointB() == QPoint(-1,-1)){//Если не задана B
+                m_model->setCell(x,y,CellType::OutPut);
+                m_model->setPointB(x,y);
+            }
+        }
+        update();
+    }
+}
+
+QRectF GridItem::boundingRect() const
+{
+    return QRectF(0, 0,m_model->width() * m_sellSize, m_model->height() * m_sellSize);//Размер сетки
+}
+
+void GridItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
+{
+    painter->setRenderHint(QPainter::Antialiasing, true);//Так стенки клеток отрисовываются равномерно
+    QPen pen(Qt::gray);
+    pen.setCosmetic(true); // Толщина пера не масштабируется
+    painter->setPen(pen);
+
+    //Рисуем квадраты
+    for(int y = 0; y < m_model->height(); y++){
+        for(int x = 0; x < m_model->width(); x++){
+            QRect rect(x * m_sellSize, y *m_sellSize,m_sellSize,m_sellSize);
+
+            switch(m_model->getCell(x, y)) {
+                case CellType::Wall:
+                    painter->fillRect(rect, Qt::darkGray);
+                    break;
+                case CellType::Empty:
+                    painter->fillRect(rect, Qt::white);
+                    break;
+                case CellType::Path:
+                    painter->fillRect(rect, Qt::red);
+                    break;
+                case CellType::Input:{
+                    painter->fillRect(rect, Qt::red);
+                    painter->setPen(QPen(Qt::white,1));
+                    painter->drawText(rect,Qt::AlignCenter, "A");
+                    break;
+                }
+                case CellType::OutPut:{
+                    painter->fillRect(rect, Qt::red);
+                    painter->setPen(QPen(Qt::white,1));
+                    painter->drawText(rect,Qt::AlignCenter, "B");
+                    break;
+                }
+                case CellType::Error:
+                    painter->fillRect(rect, Qt::magenta);
+                    break;
+                default:
+                    painter->fillRect(rect, Qt::white);
+                    break;
+            }
+        }
+    }
+
+    //Рисуем линии
+    painter->setPen(QPen(Qt::black, 1));
+    for(int x = 0; x <= m_model->width(); x++){
+        painter->drawLine(x * 30, 0, x* 30, m_model->height() * 30);
+    }
+    for(int y = 0; y <= m_model->height(); y++){
+        painter->drawLine(0, y * 30, m_model->width() * 30, y * 30);
+    }
+}

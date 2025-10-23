@@ -1,5 +1,5 @@
 #include "CustomGraphicsView.h"
-#include "Square.h"
+#include "GridItem.h"
 
 CustomGraphicsView::CustomGraphicsView(QWidget *parent) : QGraphicsView (parent)
 {

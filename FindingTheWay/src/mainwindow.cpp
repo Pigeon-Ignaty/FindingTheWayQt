@@ -6,6 +6,8 @@
 #include <QScreen>
 #include <QGraphicsRectItem>
 #include <QIntValidator>
+#include <QMessageBox>
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
@@ -40,14 +42,12 @@ void MainWindow::setupUi()
     m_scene = new CustomGraphicsScene();
     m_view = new CustomGraphicsView(this);
     m_view->setScene(m_scene);
-
     m_view->setMinimumSize(500, 500);
     m_view->setRenderHint(QPainter::Antialiasing);
 
     QHBoxLayout *m_sizesLayout = new QHBoxLayout;
     QLabel *labelWidth = new QLabel("W");
     QLabel *labelHeight = new QLabel("H");
-
     labelWidth->setFont(font);
     labelHeight->setFont(font);
 
@@ -62,7 +62,6 @@ void MainWindow::setupUi()
     m_widthLineEdit->setValidator(validator);
     m_heightLineEdit->setValidator(validator);
 
-    //Область для размеров
     m_sizesLayout->addStretch();
     m_sizesLayout->addWidget(labelWidth);
     m_sizesLayout->addWidget(m_widthLineEdit);
@@ -74,56 +73,86 @@ void MainWindow::setupUi()
     leftLayout->addWidget(m_view);
     leftLayout->addLayout(m_sizesLayout);
 
-    //Область с кнопкой генерировать
+    //Правая часть с кнопками
     QVBoxLayout *rightLayout = new QVBoxLayout();
-    m_generateButton = new QPushButton("Генерировать");
-    m_generateButton->setFixedSize(200,50);
-    m_generateButton->setFont(font);
+    m_createFieldButton = new QPushButton("Создать поле");
+    m_createFieldButton->setFixedSize(200,50);
+    m_createFieldButton->setFont(font);
 
-    //Проверяем введённые значения в lineedit
-    auto validateValueLineEdit = [this](QLineEdit *lineEdit){
-        bool ok;
-        int value = lineEdit->text().toInt(&ok);
-        if(ok){
-            if(value < minSizeField) value = minSizeField;
-            if(value > maxSizeField) value = maxSizeField;
-            lineEdit->setText(QString::number(value));
-        }
-        if(!ok)
-            return;
-    };
+    m_generateWallButton = new QPushButton("Сгенерировать стены");
+    m_generateWallButton->setFixedSize(200,50);
+    m_generateWallButton->setFont(font);
 
-    //Подключения слотов на проверку значений при вводе
-    connect(m_widthLineEdit, &QLineEdit::textChanged, this, [this, validateValueLineEdit](){
-        validateValueLineEdit(m_widthLineEdit);
-    });
-    connect(m_heightLineEdit, &QLineEdit::textChanged, this, [this, validateValueLineEdit](){
-        validateValueLineEdit(m_heightLineEdit);
-    });
-    //Создаем поле после нажатия на кнопку на основе размеров
-    connect(m_generateButton, &QPushButton::clicked, this, [this](){
-        int width = m_widthLineEdit->text().toInt();
-        int height = m_heightLineEdit->text().toInt();
+    m_findTheWayButton = new QPushButton("Найти путь");
+    m_findTheWayButton->setFixedSize(200,50);
+    m_findTheWayButton->setFont(font);
 
-        //Ещё одна проверка
-        if (width < minSizeField || width > maxSizeField)
-            return;
-        if (height < minSizeField || height > maxSizeField)
-            return;
-
-        m_scene->createGrid(width, height);
-    });
-
-    rightLayout->addWidget(m_generateButton);
+    rightLayout->addWidget(m_createFieldButton);
+    rightLayout->addWidget(m_generateWallButton);
+    rightLayout->addWidget(m_findTheWayButton);
     rightLayout->addStretch();
-
 
     mainLayout->addLayout(leftLayout, 1);
     mainLayout->addLayout(rightLayout);
-
-    mainLayout->setContentsMargins(10, 10, 10, 10);
+    mainLayout->setContentsMargins(10,10,10,10);
     mainLayout->setSpacing(10);
+
+
+    connect(m_createFieldButton, &QPushButton::clicked, this, [this](){
+        int width = m_widthLineEdit->text().toInt();
+        int height = m_heightLineEdit->text().toInt();
+
+        //проверка выхода значений за границы
+        bool widthError = (width < minSizeField || width > maxSizeField);
+        bool heightError = (height < minSizeField || height > maxSizeField);
+
+        QString errors;
+
+        if(widthError || heightError) {
+            errors = "Значение длины";
+
+            if(widthError && heightError)
+                errors += " W и H ";
+            else if(widthError)
+                errors += " W ";
+            else if(heightError)
+                errors += " H ";
+
+            errors += QString("выходит за допустимые пределы. Мин - %1, Макс - %2.").arg(minSizeField).arg(maxSizeField);
+
+            QMessageBox::warning(this, "Ошибка", errors);
+            return;
+        }
+
+        //Удаляем старые элементы сцены
+        for(auto item : m_scene->items()) {
+            m_scene->removeItem(item);
+            delete item;
+        }
+
+        //Удаляем старую модель
+        if(m_model) {
+            delete m_model;
+            m_model = nullptr;
+        }
+
+        //Создание новой модели
+        m_model = new GridModel(width, height);
+        GridItem *gridItem = new GridItem(m_model);
+
+        //Установим фокус зума в центре элемента
+        gridItem->setTransformOriginPoint(gridItem->getBoundingRect().center());
+
+        QRectF rect = gridItem->getBoundingRect();
+        gridItem->setPos(-rect.width() / 2, -rect.height() / 2);
+
+        m_scene->addItem(gridItem);
+
+        m_scene->setSceneRect(m_scene->itemsBoundingRect());
+        m_view->centerOn(gridItem);
+    });
 }
+
 
 void MainWindow::resetDefaultSettings(QSettings &settings)
 {
