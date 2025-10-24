@@ -99,6 +99,7 @@ void MainWindow::setupUi()
 
 
     connect(m_createFieldButton, &QPushButton::clicked, this, [this](){
+        m_createFieldButton->setEnabled(false);
         int width = m_widthLineEdit->text().toInt();
         int height = m_heightLineEdit->text().toInt();
 
@@ -151,15 +152,57 @@ void MainWindow::setupUi()
 
         m_scene->setSceneRect(m_scene->itemsBoundingRect());
         m_view->centerOn(m_gridItem);
+        m_createFieldButton->setEnabled(true);
     });
     connect(m_generateWallButton, &QPushButton::clicked, this, [this](){
+        m_generateWallButton->setEnabled(false);
+
         //Если не сделан предыдущий шаг, то выходим
         if(!m_model || m_model->getPointA() == QPoint(-1,-1) || m_model->getPointB() == QPoint(-1,-1)){
             QMessageBox::warning(this, "Ошибка", "Не все точки установлены!");
+            m_generateWallButton->setEnabled(true);
             return;
         }
         m_model->generateWalls(0.5);
         m_gridItem->update();
+        m_generateWallButton->setEnabled(true);
+    });
+
+    m_watcher = new QFutureWatcher<GridModel>(this);
+    connect(m_watcher, &QFutureWatcher<GridModel>::finished, this, [this](){
+        auto newModel = m_watcher->result();
+        if(*m_model == newModel){//если ничего не изменилось, то путь не найден
+            QMessageBox::warning(this, "Ошибка", "Не удалось найти путь!");
+        }
+        else{//Иначе обновляем модель и перерисовываем сетку
+            *m_model = newModel;
+            m_gridItem->update();
+        }
+        m_findTheWayButton->setEnabled(true);
+
+    }, Qt::UniqueConnection);
+
+    connect(m_findTheWayButton, &QPushButton::clicked, this, [this](){
+
+        m_findTheWayButton->setEnabled(false);
+
+        if(!m_model || m_model->getPointA() == QPoint(-1,-1) || m_model->getPointB() == QPoint(-1,-1)){
+            QMessageBox::warning(this, "Ошибка", "Не все точки установлены!");
+            m_findTheWayButton->setEnabled(true);
+            return;
+        }
+
+        m_model->clearPath(); //Очищаем пути из модели
+
+        GridModel copyModel = *m_model;//Копия модели, чтобы без гонок
+
+        QFuture<GridModel> future = QtConcurrent::run([copyModel]() mutable{
+            copyModel.findTheWayBFS();//Запускаем поиск пути и возвращаем изменённую модель, если путь найден
+            return copyModel;
+        });
+
+        m_watcher->setFuture(future);
+
     });
 }
 

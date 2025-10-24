@@ -17,8 +17,8 @@ class GridModel
 
 public:
     GridModel(int width = 10, int height = 10);
-    //Генерация блуждающих стен
-    void generateWalls(double chance);
+    void generateWalls(double chance);    //Генерация блуждающих стен
+    bool findTheWayBFS(); //Поиск в ширину
     //Получение высоты и длины
     inline int width() {return m_width; }
     inline int height() {return m_height; }
@@ -32,6 +32,11 @@ public:
 
     void setPointA(int x, int y);
     void setPointB(int x, int y);
+
+    bool operator== (const GridModel &other) const{
+        return m_cells == other.m_cells && m_pointA == other.m_pointA && m_pointB == other.m_pointB;
+    }
+    void clearPath();//Очищаем отрисованные пути перед новым поиском
 private:
     int m_width;
     int m_height;
@@ -39,5 +44,6 @@ private:
     QPoint m_pointA{-1,-1};
     QPoint m_pointB{-1,-1};
     void randomFillWalls(double chance, int maxAttempts = 10); //Случайно заполняем стенами поле
+    void setPathCell( QVector<QPoint> &pathPoints);//Устанавливаем в m_cells все пути
 };
 

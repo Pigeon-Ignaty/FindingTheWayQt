@@ -11,6 +11,9 @@
 #include "CustomGraphicsScene.h"
 #include "GridModel.h"
 #include <GridItem.h>
+#include <QFuture>
+#include <QtConcurrent>
+#include <QFutureWatcher>
 
 class MainWindow : public QMainWindow
 {
@@ -37,7 +40,7 @@ private:
     QPushButton *m_createFieldButton = nullptr;
     QPushButton *m_generateWallButton = nullptr;
     QPushButton *m_findTheWayButton = nullptr;
-
+    QFutureWatcher<GridModel> *m_watcher = nullptr;
 protected:
     void closeEvent(QCloseEvent *event) override; //Выходим из приложения и сохраняем настройки в ini
 };

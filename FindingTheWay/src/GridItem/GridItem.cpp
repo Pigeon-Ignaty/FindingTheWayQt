@@ -66,6 +66,7 @@ void GridItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
                     break;
                 case CellType::Path:
                     painter->fillRect(rect, Qt::red);
+                    drawPathCell(*painter,rect);
                     break;
                 case CellType::Input:{
                     painter->fillRect(rect, Qt::red);
@@ -98,3 +99,34 @@ void GridItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
         painter->drawLine(0, y * 30, m_model->width() * 30, y * 30);
     }
 }
+
+void GridItem::drawPathCell(QPainter &painter, const QRect &rect)
+{
+    const int step = 2; // расстояние между линиями
+
+    painter.save();
+    painter.setClipRect(rect);//Ограничиваем рисовку ячейкой
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    QColor red(255, 0, 0, 255);
+    QColor white(255, 255, 255, 255);
+
+    QPen pen;
+    pen.setWidth(1);
+    pen.setCosmetic(true);
+    painter.setPen(pen);
+
+    for (int i = -rect.height(); i < rect.width(); i += step) {//Идём по диагонали
+        QPen redPen = QPen(red, 1, Qt::SolidLine, Qt::RoundCap);
+        QPen whitePen = QPen(white, 1, Qt::SolidLine, Qt::RoundCap);
+
+        painter.setPen(((i / step) % 2 == 0) ? redPen : whitePen);//Чередуем белый с красным
+
+        QPoint p1(rect.left() + i, rect.bottom());
+        QPoint p2(rect.left() + i + rect.height(), rect.top());
+        painter.drawLine(p1, p2);
+    }
+
+    painter.restore();
+}
+

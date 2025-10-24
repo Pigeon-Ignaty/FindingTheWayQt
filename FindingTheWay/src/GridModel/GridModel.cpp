@@ -1,5 +1,6 @@
 #include "GridModel.h"
 #include "random"
+#include <QQueue>
 GridModel::GridModel(int width, int height) : m_width(width), m_height(height)
 {
     m_cells.resize(m_width * m_height);//Вектор пустых ячеек
@@ -48,6 +49,83 @@ void GridModel::generateWalls(double chance)
     }
 }
 
+bool GridModel::findTheWayBFS()
+{
+    if(m_pointA == QPoint(-1,-1) || m_pointB == QPoint(-1,-1) ){
+        return false;
+    }
+    int W = m_width;
+    int H = m_height;
+
+    QVector<bool> visited(W * H, false);//список проверенных клеток
+    QVector<int> parent(W * H, -1);//родитель для индекса
+    QQueue<int>queue; //очеред из клеток. Сначала соседи, потом соседи соседей
+
+    int indexA = m_pointA.y() * W +m_pointA.x(); //индексы точек для m_cells
+    int indexB = m_pointB.y() * W +m_pointB.x();
+
+    //Отмечаем точку А как посещённую и добавляем в очередь
+    visited[indexA] = true;
+    queue.enqueue(indexA);
+
+    //Сдвиги в 4 направления от точки
+    const int moveX[4] = {1, -1, 0, 0};
+    const int moveY[4] = {0, 0, 1, -1};
+
+    bool isFoundB = false;
+    //Исследуем соседей, пока они не закончатся
+    while(!queue.isEmpty()){
+        int index = queue.dequeue();//Берём из очереди индекс
+        if(index == indexB){//Сравниваем с индексом B
+            isFoundB = true;
+            break;
+        }
+        //Координаты из индекса этой точки
+        int x = index%W;
+        int y = index/W;
+        //проходимся по 4 соседям клетки
+        for(int dir = 0; dir < 4; dir++){
+            int neighborX = x + moveX[dir];
+            int neighborY = y + moveY[dir];
+
+            if(!inBounds(neighborX, neighborY))//Если соседняя вне сетки, берём другю соседнюю клетку
+                continue;
+
+            int neighborIndex = neighborY * W +neighborX;//Индекс соседней клетки
+
+            if(visited[neighborIndex])//Если соседняя посещена, то след
+                continue;
+            if(getCell(neighborX, neighborY) == CellType::Wall)//И если соседняя ячейка стенка, то след
+                continue;
+
+            //Отмечаем клетку посещённой, задаём родител и кидаем в очередь
+            visited[neighborIndex] = true;
+            parent[neighborIndex] = index;
+            queue.enqueue(neighborIndex);
+        }
+    }
+    //Если не найден путь
+    QVector<QPoint> pathPoints;
+    if(!isFoundB)
+        return false;
+
+    int curr = indexB;
+    while(curr != -1){ //пока не придём к точку A
+        //Получаем координаты точки
+        int currentX = curr % W;
+        int currentY = curr / W;
+        //Записываем в вектор
+        pathPoints.push_back(QPoint(currentX, currentY));
+        curr = parent[curr];//Берём родительскую точку и повторяем
+    }
+    std::reverse(pathPoints.begin(), pathPoints.end());
+
+    //Меняем состояние блоков в qvector
+    setPathCell(pathPoints);
+
+    return true;
+}
+
 CellType GridModel::getCell(int x, int y) const
 {
     if(!inBounds(x,y)) return CellType::Error;
@@ -77,6 +155,14 @@ void GridModel::setPointB(int x, int y)
     m_pointB.setY(y);
 }
 
+void GridModel::clearPath()
+{
+    for(auto &cell : m_cells){
+        if(cell == CellType::Path)
+            cell = CellType::Empty;
+    }
+}
+
 void GridModel::randomFillWalls(double chance, int maxAttempts)
 {
     bool isEmptyField = true;//Если не сгенерировалось хотя бы одной стенки
@@ -95,5 +181,15 @@ void GridModel::randomFillWalls(double chance, int maxAttempts)
     //Даём 10 попыток, если поле оказалось пустым
     if(isEmptyField && maxAttempts > 0){
         randomFillWalls(chance, maxAttempts - 1);
+    }
+}
+
+void GridModel::setPathCell(QVector<QPoint> &pathPoints)
+{
+    for(auto& point : pathPoints){
+        int index = point.y() * m_width +point.x();
+        if(m_cells[index] != CellType::Wall && m_cells[index] != CellType::Input && m_cells[index] != CellType::OutPut){
+            m_cells[index] = CellType::Path;
+        }
     }
 }
