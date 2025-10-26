@@ -7,6 +7,7 @@
 #include <QGraphicsRectItem>
 #include <QIntValidator>
 #include <QMessageBox>
+#include <QIcon>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
@@ -39,6 +40,8 @@ MainWindow::~MainWindow()
 void MainWindow::setupUi()
 {
     setWindowTitle("Поиск минимального пути");
+    setWindowIcon(QIcon(":/logo.ico"));
+
     this->resize(1280, 720);
 
     QWidget *central = new QWidget(this);
@@ -112,63 +115,7 @@ void MainWindow::setupUi()
     mainLayout->setSpacing(10);
 
 
-    connect(m_createFieldButton, &QPushButton::clicked, this, [this](){
-        m_createFieldButton->setEnabled(false);
-        int width = m_widthLineEdit->text().toInt();
-        int height = m_heightLineEdit->text().toInt();
-
-        //проверка выхода значений за границы
-        bool widthError = (width < minSizeField || width > maxSizeField);
-        bool heightError = (height < minSizeField || height > maxSizeField);
-
-        QString errors;
-
-        if(widthError || heightError) {
-            errors = "Значение длины";
-
-            if(widthError && heightError)
-                errors += " W и H ";
-            else if(widthError)
-                errors += " W ";
-            else if(heightError)
-                errors += " H ";
-
-            errors += QString("выходит за допустимые пределы. Мин - %1, Макс - %2.").arg(minSizeField).arg(maxSizeField);
-
-            QMessageBox::warning(this, "Ошибка", errors);
-            m_createFieldButton->setEnabled(true);
-            return;
-        }
-
-        //Удаляем старые элементы сцены
-        for(auto item : m_scene->items()) {
-            m_scene->removeItem(item);
-            delete item;
-        }
-        m_gridItem = nullptr;
-
-        //Удаляем старую модель
-        if(m_model) {
-            delete m_model;
-            m_model = nullptr;
-        }
-
-        //Создание новой модели
-        m_model = new GridModel(width, height);
-        m_gridItem = new GridItem(m_model);
-
-        //Установим фокус зума в центре элемента
-        m_gridItem->setTransformOriginPoint(m_gridItem->getBoundingRect().center());
-
-        QRectF rect = m_gridItem->getBoundingRect();
-        m_gridItem->setPos(-rect.width() / 2, -rect.height() / 2);
-
-        m_scene->addItem(m_gridItem);
-
-        m_scene->setSceneRect(m_scene->itemsBoundingRect());
-        m_view->centerOn(m_gridItem);
-        m_createFieldButton->setEnabled(true);
-    });
+    connect(m_createFieldButton, &QPushButton::clicked, this, &MainWindow::slotCreateField);
 
     //Создаём поток для работы ctrl режима
     m_worker = new PathWorker;
@@ -190,12 +137,6 @@ void MainWindow::setupUi()
     connect(m_generateWallButton, &QPushButton::clicked, this, [this](){
         m_generateWallButton->setEnabled(false);
 
-        //Если не сделан предыдущий шаг, то выходим
-        if(!m_model || m_model->getPointA() == QPoint(-1,-1) || m_model->getPointB() == QPoint(-1,-1)){
-            m_generateWallButton->setEnabled(true);
-            QMessageBox::warning(this, "Ошибка", "Не все точки установлены!");
-            return;
-        }
         m_model->generateWalls(0.5);
         m_gridItem->update();
         m_generateWallButton->setEnabled(true);
@@ -215,82 +156,12 @@ void MainWindow::setupUi()
 
     }, Qt::UniqueConnection);
 
-    connect(m_findTheWayButton, &QPushButton::clicked, this, [this](){
-
-        if (m_watcher->isRunning()) {
-            QMessageBox::information(this, "Внимание", "Поиск пути уже выполняется!");
-            return;
-        }
-        m_findTheWayButton->setEnabled(false);
-
-        if(!m_model || m_model->getPointA() == QPoint(-1,-1) || m_model->getPointB() == QPoint(-1,-1)){
-            QMessageBox::warning(this, "Ошибка", "Не все точки установлены!");
-            m_findTheWayButton->setEnabled(true);
-            return;
-        }
-
-        m_model->clearPath(); //Очищаем пути из модели
-
-        GridModel copyModel = *m_model;//Копия модели, чтобы без гонок
-
-        QFuture<QPair<bool, GridModel>> future = QtConcurrent::run([copyModel]() mutable -> QPair<bool, GridModel>{
-            return copyModel.findTheWayBFS();//Запускаем поиск пути и возвращаем изменённую модель, если путь найден
-        });
-        //Если работает поток, то отменяем
-        if (m_watcher->isRunning()) {
-            m_watcher->cancel();
-            m_watcher->waitForFinished();
-        }
-        m_watcher->setFuture(future);
-
-    });
+    connect(m_findTheWayButton, &QPushButton::clicked, this, &MainWindow::slotFindTheWayButton);
 
     //Реализуем работу в ctrl режиме
-    connect(m_view, &CustomGraphicsView::signalCtrlMode, this, [this](bool m_modeCtrl, QPointF pos){
-        if(!m_model || !m_gridItem || !m_worker) return;
+    connect(m_view, &CustomGraphicsView::signalCtrlMode, this, &MainWindow::slotCtrlMode);
 
-        if(m_modeCtrl){
-            //Преобразовываем глобальные координаты в координаты виджета
-            QList<QGraphicsItem*> itemsUnder = m_scene->items(pos);
-            if(itemsUnder.isEmpty()) return;
-
-            GridItem *grid = nullptr;
-            for(auto it : itemsUnder){
-                grid = qgraphicsitem_cast<GridItem*>(it);
-                if(grid) break;
-            }
-            if(!grid) return;
-
-            QPointF itemPos = grid->mapFromScene(pos);
-
-            const int cellSize = grid->getSellSize();
-            int x = static_cast<int>(std::floor(itemPos.x() / double(cellSize)));
-            int y = static_cast<int>(std::floor(itemPos.y() / double(cellSize)));
-
-            if(!m_model->inBounds(x,y)) return;
-            if(x == m_lastX && y == m_lastY) return; //Если координаты не изменились с последней попытки, то выходим
-
-            m_lastX = x;
-            m_lastY = y;
-
-            GridModel copy = *m_model;
-            copy.setPointC(x, y); //Устанавливаем временную цель в копии
-
-            //Остановим прошлый поиск
-            if(m_worker) m_worker->requestStop();
-
-            //Запускаем новый поиск в фоне
-            QMetaObject::invokeMethod(m_worker, "findTheWayBFSAsync", Qt::QueuedConnection, Q_ARG(GridModel, copy));
-        }
-        else{
-            //Если отпустили последний ctrl, прерываем поток и очищаем пути
-            if(m_worker) m_worker->requestStop();
-            m_model->clearAfterCtrl();
-            m_model->setPointC(-1,-1);
-            m_gridItem->update();
-            m_lastX = m_lastY = -1;
-        }
-    });
+    setStyle();
 }
 
 
@@ -340,10 +211,183 @@ void MainWindow::saveSettings(QSettings &settings)
     settings.setValue("UI/HeightLineEdit", m_heightLineEdit->text());
 }
 
+void MainWindow::setStyle()
+{
+    setStyleSheet(R"(
+        QWidget {
+            background-color: #f2f3f5;
+            color: #202020;
+            font-family: "Segoe UI", "Noto Sans", "Ubuntu", "DejaVu Sans", sans-serif;
+        }
+
+        QPushButton {
+            background-color: #e6e8eb;
+            border: 1px solid #c5c7ca;
+            border-radius: 6px;
+            padding: 6px;
+        }
+        QPushButton:hover {
+            background-color: #dfe1e5;
+        }
+        QPushButton:pressed {
+            background-color: #d0d3d8;
+        }
+
+        QLineEdit {
+            background-color: #ffffff;
+            border: 1px solid #c5c7ca;
+            border-radius: 4px;
+            padding: 3px;
+        }
+
+        QLabel {
+            color: #202020;
+        }
+
+        QGraphicsView {
+            background-color: #fafafa;
+            border: 1px solid #c5c7ca;
+        }
+    )");
+}
+
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     QSettings settings(QCoreApplication::applicationDirPath() + "/config.ini", QSettings::IniFormat); //сохранение настроек пользователя
     saveSettings(settings);
 
     event->accept();
+}
+
+void MainWindow::slotCreateField()
+{
+    m_createFieldButton->setEnabled(false);
+    int width = m_widthLineEdit->text().toInt();
+    int height = m_heightLineEdit->text().toInt();
+
+    //проверка выхода значений за границы
+    bool widthError = (width < minSizeField || width > maxSizeField);
+    bool heightError = (height < minSizeField || height > maxSizeField);
+
+    QString errors;
+
+    if(widthError || heightError) {
+        errors = "Значение";
+        if (widthError && heightError)
+            errors += " ширины (W) и высоты (H) ";
+        else if (widthError)
+            errors += " ширины (W) ";
+        else if (heightError)
+            errors += " высоты (H) ";
+
+        errors += QString("выходит за допустимые пределы: Мин - %1, Макс - %2.").arg(minSizeField).arg(maxSizeField);
+
+        m_createFieldButton->setEnabled(true);
+        return;
+    }
+
+    //Удаляем старые элементы сцены
+    for(auto item : m_scene->items()) {
+        m_scene->removeItem(item);
+        delete item;
+    }
+    m_gridItem = nullptr;
+
+    //Удаляем старую модель
+    if(m_model) {
+        delete m_model;
+        m_model = nullptr;
+    }
+
+    //Создание новой модели
+    m_model = new GridModel(width, height);
+    m_gridItem = new GridItem(m_model);
+
+    //Установим фокус зума в центре элемента
+    m_gridItem->setTransformOriginPoint(m_gridItem->getBoundingRect().center());
+
+    QRectF rect = m_gridItem->getBoundingRect();
+    m_gridItem->setPos(-rect.width() / 2, -rect.height() / 2);
+
+    m_scene->addItem(m_gridItem);
+
+    m_scene->setSceneRect(m_scene->itemsBoundingRect());
+    m_view->centerOn(m_gridItem);
+    m_createFieldButton->setEnabled(true);
+}
+
+void MainWindow::slotFindTheWayButton()
+{
+    if (m_watcher->isRunning()) {
+        QMessageBox::information(this, "Внимание", "Поиск пути уже выполняется!");
+        return;
+    }
+    m_findTheWayButton->setEnabled(false);
+
+    if(!m_model || m_model->getPointA() == QPoint(-1,-1) || m_model->getPointB() == QPoint(-1,-1)){
+        QMessageBox::warning(this, "Ошибка", "Не все точки установлены!");
+        m_findTheWayButton->setEnabled(true);
+        return;
+    }
+
+    m_model->clearPath(); //Очищаем пути из модели
+
+    GridModel copyModel = *m_model;//Копия модели, чтобы без гонок
+
+    QFuture<QPair<bool, GridModel>> future = QtConcurrent::run([copyModel]() mutable -> QPair<bool, GridModel>{
+        return copyModel.findTheWayBFS();//Запускаем поиск пути и возвращаем изменённую модель, если путь найден
+    });
+    //Если работает поток, то отменяем
+    if (m_watcher->isRunning()) {
+        m_watcher->cancel();
+        m_watcher->waitForFinished();
+    }
+    m_watcher->setFuture(future);
+}
+
+void MainWindow::slotCtrlMode(bool m_modeCtrl, QPointF pos)
+{
+    if(!m_model || !m_gridItem || !m_worker) return;
+
+    if(m_modeCtrl){
+        //Преобразовываем глобальные координаты в координаты виджета
+        QList<QGraphicsItem*> itemsUnder = m_scene->items(pos);
+        if(itemsUnder.isEmpty()) return;
+
+        GridItem *grid = nullptr;
+        for(auto it : itemsUnder){
+            grid = qgraphicsitem_cast<GridItem*>(it);
+            if(grid) break;
+        }
+        if(!grid) return;
+
+        QPointF itemPos = grid->mapFromScene(pos);
+
+        const int cellSize = grid->getСellSize();
+        int x = static_cast<int>(std::floor(itemPos.x() / double(cellSize)));
+        int y = static_cast<int>(std::floor(itemPos.y() / double(cellSize)));
+
+        if(!m_model->inBounds(x,y)) return;
+        if(x == m_lastX && y == m_lastY) return; //Если координаты не изменились с последней попытки, то выходим
+
+        m_lastX = x;
+        m_lastY = y;
+
+        GridModel copy = *m_model;
+        copy.setPointC(x, y); //Устанавливаем временную цель в копии
+
+        //Остановим прошлый поиск
+        if(m_worker) m_worker->requestStop();
+
+        //Запускаем новый поиск в фоне
+        QMetaObject::invokeMethod(m_worker, "findTheWayBFSAsync", Qt::QueuedConnection, Q_ARG(GridModel, copy));
+    }
+    else{
+        //Если отпустили последний ctrl, прерываем поток и очищаем пути
+        if(m_worker) m_worker->requestStop();
+        m_model->clearAfterCtrl();
+        m_model->setPointC(-1,-1);
+        m_gridItem->update();
+        m_lastX = m_lastY = -1;
+    }
 }

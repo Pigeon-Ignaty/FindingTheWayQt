@@ -31,6 +31,7 @@ private:
     void resetDefaultSettings(QSettings & settings);//Сбрасываем некорректные настройки
     void loadSettings(QSettings & settings);//Загружаем настройки
     void saveSettings(QSettings & settings);//Сохраняем
+    void setStyle();//Стили виджетов
 
     CustomGraphicsScene *m_scene = nullptr;
     CustomGraphicsView * m_view = nullptr;
@@ -45,8 +46,13 @@ private:
     PathWorker *m_worker = nullptr;
     QThread *m_thread = nullptr;
 
+    //Координаты последней последней ячейки для построения пути в ctrl
     int m_lastX = -1;
     int m_lastY = -1;
 protected:
     void closeEvent(QCloseEvent *event) override; //Выходим из приложения и сохраняем настройки в ini
+public slots:
+    void slotCreateField();
+    void slotFindTheWayButton();
+    void slotCtrlMode(bool m_modeCtrl, QPointF pos);
 };

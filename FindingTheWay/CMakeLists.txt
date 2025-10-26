@@ -28,10 +28,13 @@ set(HEADERS
     src/GridModel/GridModel.h
     src/PathWorker/PathWorker.h
 )
-
+set (RESOURCES
+    src/resources.qrc
+    )
 add_executable(${PROJECT_NAME} WIN32
     ${SOURCES}
     ${HEADERS}
+    ${RESOURCES}
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
