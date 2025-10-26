@@ -13,7 +13,6 @@ set(CMAKE_AUTORCC ON)
 set(SOURCES
     src/main.cpp
     src/mainwindow.cpp
-    src/CustomGraphicsScene/CustomGraphicsScene.cpp
     src/CustomGraphicsView/CustomGraphicsView.cpp
     src/GridItem/GridItem.cpp
     src/GridModel/GridModel.cpp
@@ -22,7 +21,6 @@ set(SOURCES
 
 set(HEADERS
     src/mainwindow.h
-    src/CustomGraphicsScene/CustomGraphicsScene.h
     src/CustomGraphicsView/CustomGraphicsView.h
     src/GridItem/GridItem.h
     src/GridModel/GridModel.h
@@ -39,7 +37,6 @@ add_executable(${PROJECT_NAME} WIN32
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     src
-    src/CustomGraphicsScene
     src/CustomGraphicsView
     src/GridItem
     src/GridModel

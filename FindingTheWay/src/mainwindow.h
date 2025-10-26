@@ -1,21 +1,19 @@
 #pragma once
 #include <QMainWindow>
 #include <QPushButton>
-#include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSettings>
 #include <QCloseEvent>
 #include "CustomGraphicsView.h"
-#include "CustomGraphicsScene.h"
 #include "GridModel.h"
 #include <GridItem.h>
 #include <QFuture>
 #include <QtConcurrent>
 #include <QFutureWatcher>
 #include <PathWorker.h>
-
+#include <QGraphicsScene>
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -33,7 +31,7 @@ private:
     void saveSettings(QSettings & settings);//Сохраняем
     void setStyle();//Стили виджетов
 
-    CustomGraphicsScene *m_scene = nullptr;
+    QGraphicsScene *m_scene = nullptr;
     CustomGraphicsView * m_view = nullptr;
     GridModel *m_model = nullptr;
     GridItem *m_gridItem = nullptr;

@@ -56,7 +56,7 @@ void MainWindow::setupUi()
     QVBoxLayout *leftLayout = new QVBoxLayout();
 
     //Сцена и поле
-    m_scene = new CustomGraphicsScene();
+    m_scene = new QGraphicsScene();
     m_view = new CustomGraphicsView(this);
     m_view->setScene(m_scene);
     m_view->setMinimumSize(500, 500);
