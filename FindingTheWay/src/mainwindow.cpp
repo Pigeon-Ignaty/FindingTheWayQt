@@ -136,7 +136,10 @@ void MainWindow::setupUi()
     m_thread->start();
     connect(m_generateWallButton, &QPushButton::clicked, this, [this](){
         m_generateWallButton->setEnabled(false);
-
+        if(!m_model || !m_gridItem) {
+            m_generateWallButton->setEnabled(true);
+            return;
+        }
         m_model->generateWalls(0.5);
         m_gridItem->update();
         m_generateWallButton->setEnabled(true);
@@ -281,6 +284,7 @@ void MainWindow::slotCreateField()
             errors += " высоты (H) ";
 
         errors += QString("выходит за допустимые пределы: Мин - %1, Макс - %2.").arg(minSizeField).arg(maxSizeField);
+        QMessageBox::warning(this, "Ошибка", errors);
 
         m_createFieldButton->setEnabled(true);
         return;
@@ -363,7 +367,7 @@ void MainWindow::slotCtrlMode(bool m_modeCtrl, QPointF pos)
 
         QPointF itemPos = grid->mapFromScene(pos);
 
-        const int cellSize = grid->getСellSize();
+        const int cellSize = grid->getCellSize();
         int x = static_cast<int>(std::floor(itemPos.x() / double(cellSize)));
         int y = static_cast<int>(std::floor(itemPos.y() / double(cellSize)));
 
