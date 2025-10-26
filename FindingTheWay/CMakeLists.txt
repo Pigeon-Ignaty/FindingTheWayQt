@@ -17,6 +17,7 @@ set(SOURCES
     src/CustomGraphicsView/CustomGraphicsView.cpp
     src/GridItem/GridItem.cpp
     src/GridModel/GridModel.cpp
+    src/PathWorker/PathWorker.cpp
 )
 
 set(HEADERS
@@ -25,9 +26,10 @@ set(HEADERS
     src/CustomGraphicsView/CustomGraphicsView.h
     src/GridItem/GridItem.h
     src/GridModel/GridModel.h
+    src/PathWorker/PathWorker.h
 )
 
-add_executable(${PROJECT_NAME}
+add_executable(${PROJECT_NAME} WIN32
     ${SOURCES}
     ${HEADERS}
 )
@@ -38,6 +40,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     src/CustomGraphicsView
     src/GridItem
     src/GridModel
+    src/PathWorker
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets Qt5::Concurrent)

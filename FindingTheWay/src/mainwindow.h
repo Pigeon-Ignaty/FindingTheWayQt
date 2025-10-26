@@ -14,6 +14,7 @@
 #include <QFuture>
 #include <QtConcurrent>
 #include <QFutureWatcher>
+#include <PathWorker.h>
 
 class MainWindow : public QMainWindow
 {
@@ -40,7 +41,12 @@ private:
     QPushButton *m_createFieldButton = nullptr;
     QPushButton *m_generateWallButton = nullptr;
     QPushButton *m_findTheWayButton = nullptr;
-    QFutureWatcher<GridModel> *m_watcher = nullptr;
+    QFutureWatcher<QPair<bool,GridModel>> *m_watcher = nullptr;
+    PathWorker *m_worker = nullptr;
+    QThread *m_thread = nullptr;
+
+    int m_lastX = -1;
+    int m_lastY = -1;
 protected:
     void closeEvent(QCloseEvent *event) override; //Выходим из приложения и сохраняем настройки в ini
 };

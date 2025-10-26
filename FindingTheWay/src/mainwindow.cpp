@@ -12,7 +12,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
     setupUi();
-    QSettings settings("config.ini", QSettings::IniFormat); //Открываем ini файл
+    QSettings settings(QCoreApplication::applicationDirPath() + "/config.ini", QSettings::IniFormat); //Открываем ini файл
     resetDefaultSettings(settings);
     loadSettings(settings);
     saveSettings(settings);
@@ -20,6 +20,20 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    if (m_watcher) {
+        m_watcher->cancel();
+        m_watcher->waitForFinished();
+        m_watcher->deleteLater();
+        m_watcher = nullptr;
+    }
+
+    if (m_thread) {
+        m_worker->requestStop();
+        m_thread->quit();
+        m_thread->wait();
+        m_thread->deleteLater();
+        m_thread = nullptr;
+    }
 }
 
 void MainWindow::setupUi()
@@ -122,6 +136,7 @@ void MainWindow::setupUi()
             errors += QString("выходит за допустимые пределы. Мин - %1, Макс - %2.").arg(minSizeField).arg(maxSizeField);
 
             QMessageBox::warning(this, "Ошибка", errors);
+            m_createFieldButton->setEnabled(true);
             return;
         }
 
@@ -154,13 +169,31 @@ void MainWindow::setupUi()
         m_view->centerOn(m_gridItem);
         m_createFieldButton->setEnabled(true);
     });
+
+    //Создаём поток для работы ctrl режима
+    m_worker = new PathWorker;
+    m_thread = new QThread(this);
+    m_worker->moveToThread(m_thread);
+
+    connect(m_thread, &QThread::finished,m_worker, &QObject::deleteLater);
+    connect(m_worker, &QObject::destroyed, [this]() { m_worker = nullptr; });
+
+    connect(m_worker, &PathWorker::pathFound,this, [this](const GridModel &result){//Если найден путь, то копируем в основую модель и рисуем
+        *m_model = result;
+        m_gridItem->update();
+    });
+    connect(m_worker, &PathWorker::pathNotFound, this,[this](){//Если не найден, то стираем путь
+        m_model->clearAfterCtrl();
+        m_gridItem->update();
+    });
+    m_thread->start();
     connect(m_generateWallButton, &QPushButton::clicked, this, [this](){
         m_generateWallButton->setEnabled(false);
 
         //Если не сделан предыдущий шаг, то выходим
         if(!m_model || m_model->getPointA() == QPoint(-1,-1) || m_model->getPointB() == QPoint(-1,-1)){
-            QMessageBox::warning(this, "Ошибка", "Не все точки установлены!");
             m_generateWallButton->setEnabled(true);
+            QMessageBox::warning(this, "Ошибка", "Не все точки установлены!");
             return;
         }
         m_model->generateWalls(0.5);
@@ -168,14 +201,14 @@ void MainWindow::setupUi()
         m_generateWallButton->setEnabled(true);
     });
 
-    m_watcher = new QFutureWatcher<GridModel>(this);
-    connect(m_watcher, &QFutureWatcher<GridModel>::finished, this, [this](){
-        auto newModel = m_watcher->result();
-        if(*m_model == newModel){//если ничего не изменилось, то путь не найден
+    m_watcher = new QFutureWatcher<QPair<bool,GridModel>>(this);
+    connect(m_watcher, &QFutureWatcher<QPair<bool, GridModel>>::finished, this, [this](){
+        auto pair = m_watcher->result();
+        if(!pair.first){//если false, то путь не найден
             QMessageBox::warning(this, "Ошибка", "Не удалось найти путь!");
         }
         else{//Иначе обновляем модель и перерисовываем сетку
-            *m_model = newModel;
+            *m_model = pair.second;
             m_gridItem->update();
         }
         m_findTheWayButton->setEnabled(true);
@@ -184,6 +217,10 @@ void MainWindow::setupUi()
 
     connect(m_findTheWayButton, &QPushButton::clicked, this, [this](){
 
+        if (m_watcher->isRunning()) {
+            QMessageBox::information(this, "Внимание", "Поиск пути уже выполняется!");
+            return;
+        }
         m_findTheWayButton->setEnabled(false);
 
         if(!m_model || m_model->getPointA() == QPoint(-1,-1) || m_model->getPointB() == QPoint(-1,-1)){
@@ -196,13 +233,63 @@ void MainWindow::setupUi()
 
         GridModel copyModel = *m_model;//Копия модели, чтобы без гонок
 
-        QFuture<GridModel> future = QtConcurrent::run([copyModel]() mutable{
-            copyModel.findTheWayBFS();//Запускаем поиск пути и возвращаем изменённую модель, если путь найден
-            return copyModel;
+        QFuture<QPair<bool, GridModel>> future = QtConcurrent::run([copyModel]() mutable -> QPair<bool, GridModel>{
+            return copyModel.findTheWayBFS();//Запускаем поиск пути и возвращаем изменённую модель, если путь найден
         });
-
+        //Если работает поток, то отменяем
+        if (m_watcher->isRunning()) {
+            m_watcher->cancel();
+            m_watcher->waitForFinished();
+        }
         m_watcher->setFuture(future);
 
+    });
+
+    //Реализуем работу в ctrl режиме
+    connect(m_view, &CustomGraphicsView::signalCtrlMode, this, [this](bool m_modeCtrl, QPointF pos){
+        if(!m_model || !m_gridItem || !m_worker) return;
+
+        if(m_modeCtrl){
+            //Преобразовываем глобальные координаты в координаты виджета
+            QList<QGraphicsItem*> itemsUnder = m_scene->items(pos);
+            if(itemsUnder.isEmpty()) return;
+
+            GridItem *grid = nullptr;
+            for(auto it : itemsUnder){
+                grid = qgraphicsitem_cast<GridItem*>(it);
+                if(grid) break;
+            }
+            if(!grid) return;
+
+            QPointF itemPos = grid->mapFromScene(pos);
+
+            const int cellSize = grid->getSellSize();
+            int x = static_cast<int>(std::floor(itemPos.x() / double(cellSize)));
+            int y = static_cast<int>(std::floor(itemPos.y() / double(cellSize)));
+
+            if(!m_model->inBounds(x,y)) return;
+            if(x == m_lastX && y == m_lastY) return; //Если координаты не изменились с последней попытки, то выходим
+
+            m_lastX = x;
+            m_lastY = y;
+
+            GridModel copy = *m_model;
+            copy.setPointC(x, y); //Устанавливаем временную цель в копии
+
+            //Остановим прошлый поиск
+            if(m_worker) m_worker->requestStop();
+
+            //Запускаем новый поиск в фоне
+            QMetaObject::invokeMethod(m_worker, "findTheWayBFSAsync", Qt::QueuedConnection, Q_ARG(GridModel, copy));
+        }
+        else{
+            //Если отпустили последний ctrl, прерываем поток и очищаем пути
+            if(m_worker) m_worker->requestStop();
+            m_model->clearAfterCtrl();
+            m_model->setPointC(-1,-1);
+            m_gridItem->update();
+            m_lastX = m_lastY = -1;
+        }
     });
 }
 
@@ -255,7 +342,8 @@ void MainWindow::saveSettings(QSettings &settings)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    QSettings settings("config.ini", QSettings::IniFormat); //сохранение настроек пользователя
+    QSettings settings(QCoreApplication::applicationDirPath() + "/config.ini", QSettings::IniFormat); //сохранение настроек пользователя
     saveSettings(settings);
+
     event->accept();
 }

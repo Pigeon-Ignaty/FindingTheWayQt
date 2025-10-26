@@ -10,7 +10,7 @@ class GridItem : public QGraphicsItem
 public:
     GridItem(GridModel *model);
     QRectF getBoundingRect() const { return boundingRect(); }
-
+    int getSellSize() {return m_sellSize;}
 protected:
     QRectF boundingRect() const override;//размеры сетки
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;//нажатие мыши на квадрат

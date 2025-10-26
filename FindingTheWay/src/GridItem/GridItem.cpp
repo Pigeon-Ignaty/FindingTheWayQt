@@ -11,8 +11,8 @@ GridItem::GridItem(GridModel *model) : m_model(model)
 void GridItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
     QPointF pos = event->pos(); //Текущая позиция
-    int x = static_cast<int>(pos.x() / 30);
-    int y = static_cast<int>(pos.y() / 30);
+    int x = static_cast<int>(pos.x() / m_sellSize);
+    int y = static_cast<int>(pos.y() / m_sellSize);
 
     //Проверка, что тыкнули по сетке
     if(x >= 0 && x < m_model->width() && y >= 0 && y < m_model->height()){
@@ -93,10 +93,10 @@ void GridItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
     //Рисуем линии
     painter->setPen(QPen(Qt::black, 1));
     for(int x = 0; x <= m_model->width(); x++){
-        painter->drawLine(x * 30, 0, x* 30, m_model->height() * 30);
+        painter->drawLine(x * m_sellSize, 0, x* m_sellSize, m_model->height() * m_sellSize);
     }
     for(int y = 0; y <= m_model->height(); y++){
-        painter->drawLine(0, y * 30, m_model->width() * 30, y * 30);
+        painter->drawLine(0, y * m_sellSize, m_model->width() * m_sellSize, y * m_sellSize);
     }
 }
 
@@ -129,4 +129,3 @@ void GridItem::drawPathCell(QPainter &painter, const QRect &rect)
 
     painter.restore();
 }
-

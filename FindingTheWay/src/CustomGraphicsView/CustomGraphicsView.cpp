@@ -23,7 +23,7 @@ void CustomGraphicsView::wheelEvent(QWheelEvent *event)
         scale(1/ZoomStep,1/ZoomStep);
 
     }
-    event->accept();
+    QGraphicsView::wheelEvent(event);
 }
 
 void CustomGraphicsView::mousePressEvent(QMouseEvent *event)
@@ -45,6 +45,10 @@ void CustomGraphicsView::mouseMoveEvent(QMouseEvent *event)
         verticalScrollBar()->setValue(verticalScrollBar()->value() - move.y());
         m_lastPosition = event->pos();
     }
+    if(m_modeCtrl){//Если нажат ctrl, то отправляем координаты
+            QPointF scenePos = mapToScene(event->pos());
+            emit signalCtrlMode(true, scenePos);
+        }
     QGraphicsView::mouseMoveEvent(event);
 }
 
@@ -56,4 +60,24 @@ void CustomGraphicsView::mouseReleaseEvent(QMouseEvent *event)
     }
 
     QGraphicsView::mouseReleaseEvent(event);
+}
+
+void CustomGraphicsView::keyPressEvent(QKeyEvent *event) {
+    if(event->key() == Qt::Key_Control){ //Включаем режим ctrl
+        m_modeCtrl = true;
+        setCursor(QCursor(Qt::CrossCursor));
+
+        QPoint viewPos = mapFromGlobal(QCursor::pos());
+        QPointF scenePos = mapToScene(viewPos);
+        emit signalCtrlMode(true, scenePos);
+    }
+}
+
+void CustomGraphicsView::keyReleaseEvent(QKeyEvent *event) {
+    if(event->key() == Qt::Key_Control) { //Отключаем режим ctrl
+        m_modeCtrl = false;
+        setCursor(QCursor(Qt::ArrowCursor));
+        emit signalCtrlMode(m_modeCtrl, QPointF(-1, -1));//Если отжали, то отправляем -1
+    }
+    QGraphicsView::keyReleaseEvent(event);
 }
